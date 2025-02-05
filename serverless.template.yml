@@ -8,8 +8,8 @@ provider:
   memorySize: 128
   timeout: 3
   environment:
-    VEHICLE_API_BASE_URL: https://zx964rwf53.execute-api.us-east-1.amazonaws.com/dev/vehicle
-    DB_HOST: vehicle-db-2.cytw8s06csde.us-east-1.rds.amazonaws.com
+    VEHICLE_API_BASE_URL: https://localhost:3333/dev/vehicle
+    DB_HOST: localhost
     DB_USER: postgres
     DB_PASSWORD: admintest
     DB_NAME: postgres
@@ -20,8 +20,8 @@ functions:
     handler: src/handlers/ReserveVehicle.handler
     description: Create New Reserve
     environment:
-      VEHICLE_API_BASE_URL: https://zx964rwf53.execute-api.us-east-1.amazonaws.com/dev/vehicle
-      DB_HOST: vehicle-db-2.cytw8s06csde.us-east-1.rds.amazonaws.com
+      VEHICLE_API_BASE_URL: https://localhost:3333/dev/vehicle
+      DB_HOST: localhost
       DB_USER: postgres
       DB_PASSWORD: admintest
       DB_NAME: postgres
