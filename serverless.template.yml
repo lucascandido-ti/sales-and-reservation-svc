@@ -1,0 +1,33 @@
+service: sales-and-reservations
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  stage: dev
+  region: us-east-1
+  memorySize: 128
+  timeout: 3
+  environment:
+    VEHICLE_API_BASE_URL: https://zx964rwf53.execute-api.us-east-1.amazonaws.com/dev/vehicle
+    DB_HOST: vehicle-db-2.cytw8s06csde.us-east-1.rds.amazonaws.com
+    DB_USER: postgres
+    DB_PASSWORD: admintest
+    DB_NAME: postgres
+    DB_PORT: 5432
+
+functions:
+  reserveVehicle:
+    handler: src/handlers/ReserveVehicle.handler
+    description: Create New Reserve
+    environment:
+      VEHICLE_API_BASE_URL: https://zx964rwf53.execute-api.us-east-1.amazonaws.com/dev/vehicle
+      DB_HOST: vehicle-db-2.cytw8s06csde.us-east-1.rds.amazonaws.com
+      DB_USER: postgres
+      DB_PASSWORD: admintest
+      DB_NAME: postgres
+      DB_PORT: 5432
+    events:
+      - http:
+          path: reservation
+          method: post
+          cors: true
