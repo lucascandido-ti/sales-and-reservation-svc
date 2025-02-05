@@ -1,0 +1,12 @@
+services:
+  postgres:
+    container_name: db-sales
+    build: .docker/postgres
+    environment:
+      POSTGRES_DB: salesdatabase
+      POSTGRES_USERNAME: _user_aplic
+      POSTGRES_PASSWORD: root
+    ports:
+      - 5432:5432
+    profiles: [dev]
+    network_mode: host
