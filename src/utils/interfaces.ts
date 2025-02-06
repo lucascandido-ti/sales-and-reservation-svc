@@ -7,3 +7,7 @@ export interface Vehicle {
   mileage?: number;
   status: "AVAILABLE" | "SOLD" | "RESERVED";
 }
+
+export interface IUser {
+  userId: string;
+}

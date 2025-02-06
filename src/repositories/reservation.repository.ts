@@ -2,9 +2,10 @@ import { ReserveVehicleDTO } from "../dto";
 import { VehicleProvider } from "../providers";
 import { pool, ReservationStatus } from "../utils";
 import { NotAvailableVehicleException } from "../exceptions";
+import { SQS } from "aws-sdk";
 
 export class ReservationRepository {
-  async CreateReservation({ userId, vehicleId }: ReserveVehicleDTO) {
+  async CreateReservation({ vehicleId }: ReserveVehicleDTO, userId: string) {
     const vehicleProvider = new VehicleProvider();
     const vehicule = await vehicleProvider.GetVehicleById(vehicleId);
 
@@ -19,6 +20,15 @@ export class ReservationRepository {
     const values = [userId, vehicleId, ReservationStatus.RESERVED];
 
     const result = await pool.query(query, values);
+
+    const sqs = new SQS();
+
+    await sqs
+      .sendMessage({
+        QueueUrl: process.env.SQS_QUEUE_URL!,
+        MessageBody: JSON.stringify({ reservation: result.rows[0] }),
+      })
+      .promise();
 
     return result.rows[0];
   }

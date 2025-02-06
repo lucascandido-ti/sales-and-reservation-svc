@@ -3,6 +3,7 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { validateDto } from "../utils/validation";
 import { ReserveVehicleDTO } from "../dto";
 import { ReservationRepository } from "../repositories";
+import { AuthProvider } from "../middlewares";
 
 export const handler = async (
   event: APIGatewayProxyEvent
@@ -11,11 +12,14 @@ export const handler = async (
     return { statusCode: 400, body: "Request body is missing" };
   }
 
+  const auth = new AuthProvider(event);
+  const userId = auth.getUserId();
+
   const dto = await validateDto(ReserveVehicleDTO, JSON.parse(event.body));
   const repository = new ReservationRepository();
 
   try {
-    const result = await repository.CreateReservation(dto);
+    const result = await repository.CreateReservation(dto, userId);
 
     return {
       statusCode: 201,

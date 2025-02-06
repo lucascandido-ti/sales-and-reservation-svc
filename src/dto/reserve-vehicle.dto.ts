@@ -1,4 +1,7 @@
+import { IsNotEmpty, IsNumber } from "class-validator";
+
 export class ReserveVehicleDTO {
-  userId: string;
+  @IsNumber()
+  @IsNotEmpty()
   vehicleId: number;
 }
