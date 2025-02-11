@@ -1,5 +1,8 @@
 import { APIGatewayProxyEvent } from "aws-lambda";
 import { CognitoIdentityServiceProvider } from "aws-sdk";
+
+import axios, { AxiosInstance } from "axios";
+
 import { IUser } from "../utils";
 import { NotFoundUserException } from "../exceptions";
 
@@ -20,20 +23,29 @@ export class AuthProvider {
     this.accessToken = accessToken;
   }
 
-  async validateUser(): Promise<IUser> {
-    const params = {
-      AccessToken: this.accessToken,
-    };
+  async validateUser(): Promise<{ userId: string }> {
+    try {
+      const params = {
+        AccessToken: this.accessToken,
+      };
 
-    const userData = await cognitoIdentityServiceProvider
-      .getUser(params)
-      .promise();
+      const userData = await cognitoIdentityServiceProvider
+        .getUser(params)
+        .promise();
 
-    const sub = userData.UserAttributes.find((attr) => attr.Name === "sub");
+      console.debug(
+        "[AuthProvider][validateUser]|[UserAttributes]",
+        JSON.stringify(userData.UserAttributes)
+      );
 
-    if (!sub) throw new NotFoundUserException("User not found");
+      const sub = userData.UserAttributes.find((attr) => attr.Name === "sub");
 
-    return { userId: sub.Value! };
+      if (!sub) throw new NotFoundUserException("User not found");
+
+      return { userId: sub.Value! };
+    } catch (error: any) {
+      throw new NotFoundUserException("User not authorized");
+    }
   }
 
   getUserId(): string {
@@ -46,5 +58,32 @@ export class AuthProvider {
     if (!userId) throw new NotFoundUserException("User not found");
 
     return userId;
+  }
+
+  async getUserData(): Promise<IUser> {
+    const userData = await cognitoIdentityServiceProvider
+      .getUser({ AccessToken: this.accessToken })
+      .promise();
+
+    console.debug(
+      "[AuthProvider][validateUser]|[UserAttributes]",
+      JSON.stringify(userData.UserAttributes)
+    );
+
+    return {
+      id: userData.UserAttributes.find((attr) => attr.Name === "sub")?.Value,
+      email: userData.UserAttributes.find((attr) => attr.Name === "email")
+        ?.Value,
+      phone_number: userData.UserAttributes.find(
+        (attr) => attr.Name === "phone_number"
+      )?.Value,
+      name: userData.UserAttributes.find((attr) => attr.Name === "name")?.Value,
+      address: userData.UserAttributes.find((attr) => attr.Name === "address")
+        ?.Value,
+      cnh: userData.UserAttributes.find((attr) => attr.Name === "custom:cnh")
+        ?.Value,
+      rg: userData.UserAttributes.find((attr) => attr.Name === "custom:rg")
+        ?.Value,
+    };
   }
 }

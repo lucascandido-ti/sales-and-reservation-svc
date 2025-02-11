@@ -12,13 +12,13 @@ export const handler = async (
     return { statusCode: 400, body: "Request body is missing" };
   }
 
-  const auth = new AuthProvider(event);
-  const userId = auth.getUserId();
-
-  const dto = await validateDto(ReserveVehicleDTO, JSON.parse(event.body));
-  const repository = new ReservationRepository();
-
   try {
+    const auth = new AuthProvider(event);
+    const { userId } = await auth.validateUser();
+
+    const dto = await validateDto(ReserveVehicleDTO, JSON.parse(event.body));
+    const repository = new ReservationRepository();
+
     const result = await repository.CreateReservation(dto, userId);
 
     return {
