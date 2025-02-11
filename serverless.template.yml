@@ -15,23 +15,29 @@ provider:
             - sqs:ReceiveMessage
             - sqs:DeleteMessage
           Resource:
-            - !GetAtt MyQueue.Arn
+            - arn:aws:sqs:${self:provider.region}:${aws:accountId}:vehicle-catalog-service-queue-${self:provider.stage}
         # Permissões para SNS
         - Effect: Allow
           Action:
             - sns:Publish
           Resource:
-            - !Ref MySNSTopic
+            - arn:aws:sns:${self:provider.region}:${aws:accountId}:vehicle-catalog-service-topic-${self:provider.stage}
         # Permissões para SES
         - Effect: Allow
           Action:
             - ses:SendEmail
             - ses:SendRawEmail
           Resource: "*"
+        - Effect: Allow
+          Action:
+            - "events:PutRule"
+            - "events:PutTargets"
+          Resource: "*"
   environment:
-    VEHICLE_API_BASE_URL: https://localhost:3333/dev/vehicle
-    SQS_QUEUE_URL: !Ref MyQueue
-    SNS_TOPIC_ARN: !Ref MySNSTopic
+    EVENT_BUS_NAME: payment-service-${self:provider.stage}-event-bus
+    VEHICLE_API_BASE_URL: https://${hash_lambda}.execute-api.${self:provider.region}.amazonaws.com/dev/vehicle
+    SQS_QUEUE_URL: https://sqs.${self:provider.region}.amazonaws.com/${aws:accountId}/vehicle-catalog-service-queue-${self:provider.stage}
+    SNS_TOPIC_ARN: arn:aws:sns:${self:provider.region}:${aws:accountId}:vehicle-catalog-service-topic-${self:provider.stage}
     DB_HOST: localhost
     DB_USER: postgres
     DB_PASSWORD: admintest
@@ -43,9 +49,9 @@ functions:
     handler: src/handlers/ReserveVehicle.handler
     description: Create New Reserve
     environment:
-      VEHICLE_API_BASE_URL: https://localhost:3333/dev/vehicle
-      SQS_QUEUE_URL: !Ref MyQueue
-      SNS_TOPIC_ARN: !Ref MySNSTopic
+      VEHICLE_API_BASE_URL: https://${hash_lambda}.execute-api.${self:provider.region}.amazonaws.com/dev/vehicle
+      SQS_QUEUE_URL: https://sqs.${self:provider.region}.amazonaws.com/${aws:accountId}/vehicle-catalog-service-queue-${self:provider.stage}
+      SNS_TOPIC_ARN: arn:aws:sns:${self:provider.region}:${aws:accountId}:vehicle-catalog-service-topic-${self:provider.stage}
       DB_HOST: localhost
       DB_USER: postgres
       DB_PASSWORD: admintest
@@ -57,35 +63,42 @@ functions:
           method: post
           cors: true
 
-resources:
-  Resources:
-    # Configuração da Fila SQS (com DLQ opcional)
-    MyQueue:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: ${self:service}-queue-${sls:stage}
-        VisibilityTimeout: 30
-        MessageRetentionPeriod: 1209600 # 14 dias
-        RedrivePolicy:
-          deadLetterTargetArn: !GetAtt MyDLQ.Arn
-          maxReceiveCount: 3
+  saleVehicle:
+    handler: src/handlers/SaleVehicle.handler
+    description: Create New Sales Request
+    environment:
+      VEHICLE_API_BASE_URL: https://${hash_lambda}.execute-api.${self:provider.region}.amazonaws.com/dev/vehicle
+      SQS_QUEUE_URL: https://sqs.${self:provider.region}.amazonaws.com/${aws:accountId}/vehicle-catalog-service-queue-${self:provider.stage}
+      SNS_TOPIC_ARN: arn:aws:sns:${self:provider.region}:${aws:accountId}:vehicle-catalog-service-topic-${self:provider.stage}
+      DB_HOST: localhost
+      DB_USER: postgres
+      DB_PASSWORD: admintest
+      DB_NAME: postgres
+      DB_PORT: 5432
+    events:
+      - http:
+          path: sale
+          method: post
+          cors: true
 
-    # Dead Letter Queue (DLQ)
-    MyDLQ:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: ${self:service}-dlq-${sls:stage}
-        MessageRetentionPeriod: 1209600
-
-    # Tópico SNS
-    MySNSTopic:
-      Type: AWS::SNS::Topic
-      Properties:
-        TopicName: ${self:service}-topic-${sls:stage}
-        DisplayName: MyServerlessTopic
-
-    # Configuração SES (Identity)
-    MySESIdentity:
-      Type: AWS::SES::EmailIdentity
-      Properties:
-        EmailIdentity: user@example.com # Substitua pelo seu e-mail verificado
+  paymentConfirmation:
+    handler: src/events/PaymentConfirmation.handler
+    environment:
+      EVENT_BUS_NAME: ${self:service}-${self:provider.stage}-event-bus
+      VEHICLE_API_BASE_URL: https://${hash_lambda}.execute-api.${self:provider.region}.amazonaws.com/dev/vehicle
+      SQS_QUEUE_URL: https://sqs.${self:provider.region}.amazonaws.com/${aws:accountId}/vehicle-catalog-service-queue-${self:provider.stage}
+      SNS_TOPIC_ARN: arn:aws:sns:${self:provider.region}:${aws:accountId}:vehicle-catalog-service-topic-${self:provider.stage}
+      DB_HOST: localhost
+      DB_USER: postgres
+      DB_PASSWORD: admintest
+      DB_NAME: postgres
+      DB_PORT: 5432
+    events:
+      - eventBridge:
+          eventBus: arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/payment-service-${self:provider.stage}-event-bus
+          pattern:
+            source:
+              - payment.service
+            detail-type:
+              - PaymentCompleted
+              - PaymentFailed
